@@ -1,7 +1,7 @@
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '4.0.1'
-	id 'io.spring.dependency-management' version '1.1.7'
+    id 'java'
+    id 'org.springframework.boot' version '4.0.1'
+    id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.aantriksanket'
@@ -9,35 +9,34 @@ version = '0.0.1-SNAPSHOT'
 description = 'Server for Aantrik Sanket'
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
-
 repositories {
-	mavenCentral()
+    mavenCentral()
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-  implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
-  implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-  implementation 'org.postgresql:postgresql'
-  implementation 'org.springframework.boot:spring-boot-starter-web'
-  implementation 'org.springframework.security:spring-security-crypto'
-testImplementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.security:spring-security-crypto'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
+    implementation 'org.postgresql:postgresql'
 
-
-
-
-
-
-
-
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+    useJUnitPlatform()
+}
+
+/* 🔑 CRITICAL FIX */
+jar {
+    enabled = false
+}
+
+bootJar {
+    archiveFileName = 'backend.jar'
 }
