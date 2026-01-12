@@ -19,7 +19,7 @@ public class HealthController {
         this.databaseHealthService = databaseHealthService;
     }
 
-    @GetMapping("/api/health")
+    @GetMapping("/api/public/health")
     @Operation(summary = "Get system health status")
     public HealthStatusResponse getHealth() {
 
@@ -31,7 +31,7 @@ public class HealthController {
         );
 
         return new HealthStatusResponse(
-                allUp ? "UP" : "DEGRADED",
+                allUp ? "UP and RUNNING" : "DEGRADED",
                 components
         );
     }
