@@ -22,11 +22,15 @@ public class SubscriptionPlan {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "features", nullable = false, columnDefinition = "jsonb")
-    private Map<String, Map<String, Boolean>> features;
+    private Map<String, Boolean> features;
 
     // Fixed validity for special plans (Trial, Friends & Family) - if set, ignores tiered validity
     @Column(name = "fixed_validity_days")
     private Integer fixedValidityDays;
+
+    // Static plans (Trial, Friends & Family) cannot be deleted or renamed
+    @Column(name = "is_static", nullable = false)
+    private Boolean isStatic = false;
 
     // Validity (days) per tier - used only if fixedValidityDays is null
     @Column(name = "weekly_validity")
@@ -64,8 +68,9 @@ public class SubscriptionPlan {
     }
 
     public SubscriptionPlan(String name,
-                          Map<String, Map<String, Boolean>> features,
+                          Map<String, Boolean> features,
                           Integer fixedValidityDays,
+                          Boolean isStatic,
                           Integer weeklyValidity,
                           Integer monthlyValidity,
                           Integer yearlyValidity,
@@ -79,6 +84,7 @@ public class SubscriptionPlan {
         this.name = name;
         this.features = features;
         this.fixedValidityDays = fixedValidityDays;
+        this.isStatic = isStatic != null ? isStatic : false;
         this.weeklyValidity = weeklyValidity;
         this.monthlyValidity = monthlyValidity;
         this.yearlyValidity = yearlyValidity;
@@ -107,11 +113,11 @@ public class SubscriptionPlan {
         this.name = name;
     }
 
-    public Map<String, Map<String, Boolean>> getFeatures() {
+    public Map<String, Boolean> getFeatures() {
         return features;
     }
 
-    public void setFeatures(Map<String, Map<String, Boolean>> features) {
+    public void setFeatures(Map<String, Boolean> features) {
         this.features = features;
     }
 
@@ -201,5 +207,13 @@ public class SubscriptionPlan {
 
     public void setFixedValidityDays(Integer fixedValidityDays) {
         this.fixedValidityDays = fixedValidityDays;
+    }
+
+    public Boolean getIsStatic() {
+        return isStatic;
+    }
+
+    public void setIsStatic(Boolean isStatic) {
+        this.isStatic = isStatic;
     }
 }

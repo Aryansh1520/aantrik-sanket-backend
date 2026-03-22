@@ -42,8 +42,11 @@ public class TenantService {
             throw new RuntimeException("Domain name already exists");
         }
 
-        // Generate email from domain name
-        String email = generateEmailFromDomain(request.getDomainName());
+        // Validate email
+        if (request.getEmail() == null || request.getEmail().isBlank()) {
+            throw new RuntimeException("Email is required");
+        }
+        String email = request.getEmail().trim().toLowerCase();
         if (tenantRepository.existsByEmail(email)) {
             throw new RuntimeException("Email already exists");
         }
@@ -67,14 +70,14 @@ public class TenantService {
                 trialPlan
         );
 
-        tenant.setSubscriptionType(SubscriptionInterval.MONTHLY);
-        tenant.setSubscriptionValidity(getValidityForSubscriptionType(trialPlan, SubscriptionInterval.MONTHLY));
+        tenant.setSubscriptionType(SubscriptionInterval.FIXED);
+        tenant.setSubscriptionValidity(trialPlan.getFixedValidityDays() != null ? trialPlan.getFixedValidityDays() : 14);
         // Trial doesn't start until first login, so dates are null
         tenant.setSubscriptionStartAt(null);
         tenant.setSubscriptionEndAt(null);
         tenant.setSubscriptionDaysLeft(0);
 
-        tenant = tenantRepository.save(tenant);
+        tenant = tenantRepository.saveAndFlush(tenant);
 
         // Build response
         Map<String, Object> data = new HashMap<>();
@@ -154,6 +157,12 @@ public class TenantService {
             tenant.setSubscriptionType(request.getSubscriptionType());
         }
 
+        // For static/fixed plans, force subscription type to FIXED
+        if (tenant.getSubscriptionPlan() != null &&
+            tenant.getSubscriptionPlan().getFixedValidityDays() != null) {
+            tenant.setSubscriptionType(SubscriptionInterval.FIXED);
+        }
+
         // If subscription changed and tenant has logged in, update subscription dates
         if (subscriptionChanged && tenant.getFirstLoggedIn()) {
             updateSubscriptionDates(tenant);
@@ -188,11 +197,6 @@ public class TenantService {
         return data;
     }
 
-    private String generateEmailFromDomain(String domainName) {
-        // Generate email like: admin@domainname.com
-        return "admin@" + domainName;
-    }
-
     private void updateSubscriptionDates(Tenant tenant) {
         if (tenant.getSubscriptionPlan() == null) {
             return;
@@ -218,6 +222,7 @@ public class TenantService {
             case WEEKLY -> plan.getWeeklyValidity() != null ? plan.getWeeklyValidity() : 7;
             case MONTHLY -> plan.getMonthlyValidity() != null ? plan.getMonthlyValidity() : 30;
             case YEARLY -> plan.getYearlyValidity() != null ? plan.getYearlyValidity() : 365;
+            case FIXED -> plan.getFixedValidityDays() != null ? plan.getFixedValidityDays() : 0;
         };
     }
 

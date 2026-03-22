@@ -18,6 +18,10 @@ import java.util.stream.Collectors;
 @Service
 public class SubscriptionPlanService {
 
+    private static final String TRIAL_PLAN_NAME = "Trial";
+    private static final String FF_PLAN_NAME = "Friends and Family Plan";
+    private static final int FF_FIXED_VALIDITY_DAYS = 36500; // 100 years
+
     private final SubscriptionPlanRepository subscriptionPlanRepository;
 
     public SubscriptionPlanService(SubscriptionPlanRepository subscriptionPlanRepository) {
@@ -25,28 +29,15 @@ public class SubscriptionPlanService {
     }
 
     private boolean isSpecialFixedPlan(String name) {
-        return "Trial".equalsIgnoreCase(name) || "Friends and Family Plan".equalsIgnoreCase(name);
+        return TRIAL_PLAN_NAME.equalsIgnoreCase(name) || FF_PLAN_NAME.equalsIgnoreCase(name);
     }
 
     private void enforceValidityForPlan(SubscriptionPlanRequest request) {
         if (isSpecialFixedPlan(request.getName())) {
-            if ("Trial".equalsIgnoreCase(request.getName())) {
-                // Trial: fixed validity; default 14 if not provided (admin can change)
-                if (request.getFixedValidityDays() == null) {
-                    request.setFixedValidityDays(14);
-                }
-            } else {
-                // Friends and Family: fixed 100 years; not editable
-                request.setFixedValidityDays(36500);
-                // Force free pricing and zero discounts
-                request.setWeeklyPrice(java.math.BigDecimal.ZERO);
-                request.setMonthlyPrice(java.math.BigDecimal.ZERO);
-                request.setYearlyPrice(java.math.BigDecimal.ZERO);
-                request.setWeeklyDiscount(0);
-                request.setMonthlyDiscount(0);
-                request.setYearlyDiscount(0);
+            // For special plans, require fixedValidityDays and set tiered validities to null
+            if (request.getFixedValidityDays() == null) {
+                throw new RuntimeException("fixedValidityDays is required for Trial and Friends & Family plans");
             }
-            // Special plans do not use tiered validity
             request.setWeeklyValidity(null);
             request.setMonthlyValidity(null);
             request.setYearlyValidity(null);
@@ -69,8 +60,33 @@ public class SubscriptionPlanService {
         }
     }
 
+    private SubscriptionPlanResponse toResponse(SubscriptionPlan plan) {
+        return new SubscriptionPlanResponse(
+                plan.getId(),
+                plan.getName(),
+                plan.getFeatures(),
+                plan.getFixedValidityDays(),
+                plan.getIsStatic(),
+                plan.getWeeklyValidity(),
+                plan.getMonthlyValidity(),
+                plan.getYearlyValidity(),
+                plan.getAttributes(),
+                plan.getWeeklyPrice(),
+                plan.getMonthlyPrice(),
+                plan.getYearlyPrice(),
+                plan.getWeeklyDiscount(),
+                plan.getMonthlyDiscount(),
+                plan.getYearlyDiscount()
+        );
+    }
+
     @Transactional
     public SubscriptionPlanResponse create(SubscriptionPlanRequest request) {
+        // Block creating plans with reserved static plan names
+        if (isSpecialFixedPlan(request.getName())) {
+            throw new RuntimeException("Cannot create a plan with reserved name '" + request.getName() + "'. Trial and Friends & Family plans are system-managed.");
+        }
+
         if (subscriptionPlanRepository.existsByName(request.getName())) {
             throw new RuntimeException("Subscription plan name already exists");
         }
@@ -82,6 +98,7 @@ public class SubscriptionPlanService {
                 request.getName(),
                 request.getFeatures(),
                 request.getFixedValidityDays(),
+                false, // not a static plan
                 request.getWeeklyValidity(),
                 request.getMonthlyValidity(),
                 request.getYearlyValidity(),
@@ -95,43 +112,12 @@ public class SubscriptionPlanService {
         );
 
         plan = subscriptionPlanRepository.save(plan);
-
-        return new SubscriptionPlanResponse(
-                plan.getId(),
-                plan.getName(),
-                plan.getFeatures(),
-                plan.getFixedValidityDays(),
-                plan.getWeeklyValidity(),
-                plan.getMonthlyValidity(),
-                plan.getYearlyValidity(),
-                plan.getAttributes(),
-                plan.getWeeklyPrice(),
-                plan.getMonthlyPrice(),
-                plan.getYearlyPrice(),
-                plan.getWeeklyDiscount(),
-                plan.getMonthlyDiscount(),
-                plan.getYearlyDiscount()
-        );
+        return toResponse(plan);
     }
 
     public List<SubscriptionPlanResponse> getAll() {
         return subscriptionPlanRepository.findAll().stream()
-                .map(plan -> new SubscriptionPlanResponse(
-                        plan.getId(),
-                        plan.getName(),
-                        plan.getFeatures(),
-                        plan.getFixedValidityDays(),
-                        plan.getWeeklyValidity(),
-                        plan.getMonthlyValidity(),
-                        plan.getYearlyValidity(),
-                        plan.getAttributes(),
-                        plan.getWeeklyPrice(),
-                        plan.getMonthlyPrice(),
-                        plan.getYearlyPrice(),
-                        plan.getWeeklyDiscount(),
-                        plan.getMonthlyDiscount(),
-                        plan.getYearlyDiscount()
-                ))
+                .map(this::toResponse)
                 .collect(Collectors.toList());
     }
 
@@ -140,24 +126,7 @@ public class SubscriptionPlanService {
         if (planOpt.isEmpty()) {
             throw new RuntimeException("Subscription plan not found");
         }
-
-        SubscriptionPlan plan = planOpt.get();
-        return new SubscriptionPlanResponse(
-                plan.getId(),
-                plan.getName(),
-                plan.getFeatures(),
-                plan.getFixedValidityDays(),
-                plan.getWeeklyValidity(),
-                plan.getMonthlyValidity(),
-                plan.getYearlyValidity(),
-                plan.getAttributes(),
-                plan.getWeeklyPrice(),
-                plan.getMonthlyPrice(),
-                plan.getYearlyPrice(),
-                plan.getWeeklyDiscount(),
-                plan.getMonthlyDiscount(),
-                plan.getYearlyDiscount()
-        );
+        return toResponse(planOpt.get());
     }
 
     @Transactional
@@ -169,10 +138,29 @@ public class SubscriptionPlanService {
 
         SubscriptionPlan plan = planOpt.get();
 
+        // --- Static plan protections ---
+        if (Boolean.TRUE.equals(plan.getIsStatic())) {
+            // Block renaming static plans
+            if (!plan.getName().equalsIgnoreCase(request.getName())) {
+                throw new RuntimeException("Cannot rename a static plan ('" + plan.getName() + "')");
+            }
+
+            // Friends & Family: validity is immutable (always 36500)
+            if (FF_PLAN_NAME.equalsIgnoreCase(plan.getName())) {
+                request.setFixedValidityDays(FF_FIXED_VALIDITY_DAYS);
+            }
+            // Trial: admin CAN change fixedValidityDays — no override needed
+        }
+
         // Check if name is being changed and if new name already exists
         if (!plan.getName().equals(request.getName()) &&
             subscriptionPlanRepository.existsByName(request.getName())) {
             throw new RuntimeException("Subscription plan name already exists");
+        }
+
+        // Block non-static plans from using reserved names
+        if (!Boolean.TRUE.equals(plan.getIsStatic()) && isSpecialFixedPlan(request.getName())) {
+            throw new RuntimeException("Cannot rename a plan to reserved name '" + request.getName() + "'");
         }
 
         ensurePricesProvided(request);
@@ -193,23 +181,7 @@ public class SubscriptionPlanService {
         plan.setYearlyDiscount(request.getYearlyDiscount());
 
         plan = subscriptionPlanRepository.save(plan);
-
-        return new SubscriptionPlanResponse(
-                plan.getId(),
-                plan.getName(),
-                plan.getFeatures(),
-                plan.getFixedValidityDays(),
-                plan.getWeeklyValidity(),
-                plan.getMonthlyValidity(),
-                plan.getYearlyValidity(),
-                plan.getAttributes(),
-                plan.getWeeklyPrice(),
-                plan.getMonthlyPrice(),
-                plan.getYearlyPrice(),
-                plan.getWeeklyDiscount(),
-                plan.getMonthlyDiscount(),
-                plan.getYearlyDiscount()
-        );
+        return toResponse(plan);
     }
 
     @Transactional
@@ -217,6 +189,13 @@ public class SubscriptionPlanService {
         Optional<SubscriptionPlan> planOpt = subscriptionPlanRepository.findById(id);
         if (planOpt.isEmpty()) {
             throw new RuntimeException("Subscription plan not found");
+        }
+
+        SubscriptionPlan plan = planOpt.get();
+
+        // Block deletion of static plans
+        if (Boolean.TRUE.equals(plan.getIsStatic())) {
+            throw new RuntimeException("Cannot delete static plan '" + plan.getName() + "'. Trial and Friends & Family plans are system-managed.");
         }
 
         // TODO: Check if any tenant is using this plan before deleting

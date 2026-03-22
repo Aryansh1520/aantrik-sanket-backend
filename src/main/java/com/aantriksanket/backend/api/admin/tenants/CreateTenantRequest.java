@@ -4,6 +4,7 @@ public class CreateTenantRequest {
     private String firstName;
     private String lastName;
     private String phoneNumber;
+    private String email;
     private String domainName;
 
     public CreateTenantRequest() {
@@ -31,6 +32,14 @@ public class CreateTenantRequest {
 
     public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getDomainName() {

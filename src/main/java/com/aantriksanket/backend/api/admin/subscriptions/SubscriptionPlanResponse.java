@@ -9,11 +9,14 @@ import java.util.UUID;
 public class SubscriptionPlanResponse {
     private UUID id;
     private String name;
-    private Map<String, Map<String, Boolean>> features;
+    private Map<String, Boolean> features;
     private String attributes;
 
     // Fixed validity for special plans
     private Integer fixedValidityDays;
+
+    // Whether this is a system-managed static plan
+    private Boolean isStatic;
 
     // Validity per tier
     private Integer weeklyValidity;
@@ -34,8 +37,9 @@ public class SubscriptionPlanResponse {
 
     public SubscriptionPlanResponse(UUID id,
                                    String name,
-                                   Map<String, Map<String, Boolean>> features,
+                                   Map<String, Boolean> features,
                                    Integer fixedValidityDays,
+                                   Boolean isStatic,
                                    Integer weeklyValidity,
                                    Integer monthlyValidity,
                                    Integer yearlyValidity,
@@ -50,6 +54,7 @@ public class SubscriptionPlanResponse {
         this.name = name;
         this.features = features;
         this.fixedValidityDays = fixedValidityDays;
+        this.isStatic = isStatic;
         this.weeklyValidity = weeklyValidity;
         this.monthlyValidity = monthlyValidity;
         this.yearlyValidity = yearlyValidity;
@@ -78,11 +83,11 @@ public class SubscriptionPlanResponse {
         this.name = name;
     }
 
-    public Map<String, Map<String, Boolean>> getFeatures() {
+    public Map<String, Boolean> getFeatures() {
         return features;
     }
 
-    public void setFeatures(Map<String, Map<String, Boolean>> features) {
+    public void setFeatures(Map<String, Boolean> features) {
         this.features = features;
     }
 
@@ -172,5 +177,13 @@ public class SubscriptionPlanResponse {
 
     public void setFixedValidityDays(Integer fixedValidityDays) {
         this.fixedValidityDays = fixedValidityDays;
+    }
+
+    public Boolean getIsStatic() {
+        return isStatic;
+    }
+
+    public void setIsStatic(Boolean isStatic) {
+        this.isStatic = isStatic;
     }
 }

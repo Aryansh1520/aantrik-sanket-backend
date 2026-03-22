@@ -9,8 +9,8 @@ public class SubscriptionPlanRequest {
     @Schema(description = "Plan name")
     private String name;
 
-    @Schema(description = "Feature permissions by category, same shape as admin role permissions")
-    private Map<String, Map<String, Boolean>> features;
+    @Schema(description = "Page-level permissions: {\"page_name\": true/false}")
+    private Map<String, Boolean> features;
 
     @Schema(description = "Attributes/notes for the plan")
     private String attributes;
@@ -56,11 +56,11 @@ public class SubscriptionPlanRequest {
         this.name = name;
     }
 
-    public Map<String, Map<String, Boolean>> getFeatures() {
+    public Map<String, Boolean> getFeatures() {
         return features;
     }
 
-    public void setFeatures(Map<String, Map<String, Boolean>> features) {
+    public void setFeatures(Map<String, Boolean> features) {
         this.features = features;
     }
 

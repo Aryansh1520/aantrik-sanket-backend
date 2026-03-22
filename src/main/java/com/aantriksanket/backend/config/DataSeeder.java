@@ -99,65 +99,75 @@ public class DataSeeder {
     }
 
     private void seedSubscriptionPlans() {
-        // Check if subscription plans already exist
-        if (subscriptionPlanRepository.count() > 0) {
-            return;
-        }
+        // Seed Trial plan
+        subscriptionPlanRepository.findByName("Trial").ifPresentOrElse(
+                existing -> {
+                    // Ensure existing Trial plan is marked as static
+                    if (!Boolean.TRUE.equals(existing.getIsStatic())) {
+                        existing.setIsStatic(true);
+                        subscriptionPlanRepository.save(existing);
+                    }
+                },
+                () -> {
+                    Map<String, Boolean> trialFeatures = new HashMap<>();
+                    trialFeatures.put("dashboard", true);
+                    trialFeatures.put("appointments", true);
+                    trialFeatures.put("clients", false);
+                    trialFeatures.put("reports", false);
 
-        // Create Trial subscription plan
-        Map<String, Map<String, Boolean>> trialFeatures = new HashMap<>();
-        // Trial has basic features - can be customized
-        Map<String, Boolean> basicFeatures = new HashMap<>();
-        basicFeatures.put("create", true);
-        basicFeatures.put("read", true);
-        basicFeatures.put("update", false);
-        basicFeatures.put("delete", false);
-        trialFeatures.put("basic", basicFeatures);
-
-        SubscriptionPlan trialPlan = new SubscriptionPlan(
-                "Trial",
-                trialFeatures,
-                30, // fixed validity days (admin can edit)
-                null, // weekly validity (not used for fixed plans)
-                null, // monthly validity (not used for fixed plans)
-                null, // yearly validity (not used for fixed plans)
-                "Trial subscription plan with limited features",
-                BigDecimal.ZERO, // weekly price
-                BigDecimal.ZERO, // monthly price
-                BigDecimal.ZERO, // yearly price
-                0, // No discounts for trial
-                0,
-                0
+                    SubscriptionPlan trialPlan = new SubscriptionPlan(
+                            "Trial",
+                            trialFeatures,
+                            14, // fixed validity days (admin can edit)
+                            true, // isStatic
+                            null, null, null, // tiered validity not used
+                            "Trial subscription plan with limited features",
+                            BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                            0, 0, 0
+                    );
+                    subscriptionPlanRepository.save(trialPlan);
+                }
         );
-        subscriptionPlanRepository.save(trialPlan);
 
-        // Create Friends and Family Plan
+        // Seed Friends and Family Plan
         // 100 years = 36500 days (100 * 365)
-        Map<String, Map<String, Boolean>> friendsFamilyFeatures = new HashMap<>();
-        // Full features
-        Map<String, Boolean> fullFeatures = new HashMap<>();
-        fullFeatures.put("create", true);
-        fullFeatures.put("read", true);
-        fullFeatures.put("update", true);
-        fullFeatures.put("delete", true);
-        friendsFamilyFeatures.put("all", fullFeatures);
+        subscriptionPlanRepository.findByName("Friends and Family Plan").ifPresentOrElse(
+                existing -> {
+                    boolean needsSave = false;
+                    // Ensure F&F is marked as static
+                    if (!Boolean.TRUE.equals(existing.getIsStatic())) {
+                        existing.setIsStatic(true);
+                        needsSave = true;
+                    }
+                    // Ensure F&F validity is always 36500 (immutable)
+                    if (existing.getFixedValidityDays() == null || existing.getFixedValidityDays() != 36500) {
+                        existing.setFixedValidityDays(36500);
+                        needsSave = true;
+                    }
+                    if (needsSave) {
+                        subscriptionPlanRepository.save(existing);
+                    }
+                },
+                () -> {
+                    Map<String, Boolean> friendsFamilyFeatures = new HashMap<>();
+                    friendsFamilyFeatures.put("dashboard", true);
+                    friendsFamilyFeatures.put("appointments", true);
+                    friendsFamilyFeatures.put("clients", true);
+                    friendsFamilyFeatures.put("reports", true);
 
-        SubscriptionPlan friendsFamilyPlan = new SubscriptionPlan(
-                "Friends and Family Plan",
-                friendsFamilyFeatures,
-                36500, // fixed validity days (100 years)
-                null, // weekly validity (not used for fixed plans)
-                null, // monthly validity (not used for fixed plans)
-                null, // yearly validity (not used for fixed plans)
-                "Friends and Family Plan with full features and 100 years validity",
-                BigDecimal.ZERO, // weekly price
-                BigDecimal.ZERO, // monthly price
-                BigDecimal.ZERO, // yearly price
-                10, // 10% discount for weekly
-                15, // 15% discount for monthly
-                20  // 20% discount for yearly
+                    SubscriptionPlan friendsFamilyPlan = new SubscriptionPlan(
+                            "Friends and Family Plan",
+                            friendsFamilyFeatures,
+                            36500, // fixed validity days (100 years, immutable)
+                            true, // isStatic
+                            null, null, null, // tiered validity not used
+                            "Friends and Family Plan with full features and 100 years validity",
+                            BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                            0, 0, 0
+                    );
+                    subscriptionPlanRepository.save(friendsFamilyPlan);
+                }
         );
-        subscriptionPlanRepository.save(friendsFamilyPlan);
     }
 
     private void seedDefaultAdmin(AdminRole superAdminRole) {

@@ -37,7 +37,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/api/admin/auth/reset-password").permitAll()
                         .requestMatchers("/api/admin/auth/login").permitAll()
-                        .requestMatchers("/api/tenant/auth/first-login-complete").permitAll()
+                        .requestMatchers("/api/tenant/auth/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/admin/**").authenticated()
                         .anyRequest().authenticated()
