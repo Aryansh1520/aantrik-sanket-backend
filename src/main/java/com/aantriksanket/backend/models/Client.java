@@ -39,6 +39,7 @@ public class Client {
     private LocalDate dob;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "gender", columnDefinition = "gender_enum")
     private Gender gender;
 
@@ -46,6 +47,7 @@ public class Client {
     private String occupation;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "marital_status", columnDefinition = "marital_status_enum")
     private MaritalStatus maritalStatus;
 
@@ -87,6 +89,7 @@ public class Client {
     private String sessionRecurrence;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "status", columnDefinition = "client_status_enum")
     private ClientStatus status = ClientStatus.NEW;
 
