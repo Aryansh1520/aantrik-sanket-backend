@@ -151,16 +151,16 @@ public class SessionService {
 
     @Transactional(readOnly = true)
     public List<SessionResponse> getSessions(Tenant therapist, UUID clientId, Boolean includeCanceled) {
-        // A simple implementation. Real-world would use Specification or QueryDSL
-        return sessionRepository.findAll().stream()
-                .filter(s -> s.getTherapist().getId().equals(therapist.getId()))
-                .filter(s -> clientId == null || s.getClient().getId().equals(clientId))
-                .filter(s -> Boolean.TRUE.equals(includeCanceled) || !"CANCELED".equals(s.getStatus().name()))
-                .map(s -> {
-                    CalendarEvent ce = calendarEventRepository.findById(s.getId()).orElse(null);
-                    return new SessionResponse(s, ce != null ? ce.getSyncStatus() : SyncStatus.PENDING);
-                })
-                .collect(Collectors.toList());
+        // Highly optimized: Offload filtering and sorting to the database instead of Java memory
+        OffsetDateTime threshold = OffsetDateTime.now().minusDays(1);
+        boolean showCanceled = Boolean.TRUE.equals(includeCanceled);
+        
+        List<Session> sessions = sessionRepository.findUpcomingSessions(therapist.getId(), clientId, threshold, showCanceled);
+        
+        return sessions.stream().map(s -> {
+            CalendarEvent ce = calendarEventRepository.findById(s.getId()).orElse(null);
+            return new SessionResponse(s, ce != null ? ce.getSyncStatus() : SyncStatus.PENDING);
+        }).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

@@ -23,5 +23,17 @@ public interface SessionRepository extends JpaRepository<Session, UUID> {
             @Param("endTime") OffsetDateTime endTime
     );
 
+    @Query("SELECT s FROM Session s WHERE s.therapist.id = :therapistId " +
+           "AND (:clientId IS NULL OR s.client.id = :clientId) " +
+           "AND s.startTime > :afterTime " +
+           "AND (:includeCanceled = TRUE OR s.status != 'CANCELED') " +
+           "ORDER BY s.startTime ASC")
+    List<Session> findUpcomingSessions(
+            @Param("therapistId") UUID therapistId,
+            @Param("clientId") UUID clientId,
+            @Param("afterTime") OffsetDateTime afterTime,
+            @Param("includeCanceled") boolean includeCanceled
+    );
+
     List<Session> findBySeriesIdOrderByStartTimeAsc(UUID seriesId);
 }

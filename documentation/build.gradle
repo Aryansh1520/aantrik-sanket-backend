@@ -1,0 +1,32 @@
+# Session Management Integration Walkthrough
+
+## Overview
+Successfully integrated a robust Session Management feature into the existing Spring Boot application. The implementation closely follows existing project conventions, including authentication patterns, response handling, and database conventions, while extending functionality for therapists to manage therapy sessions.
+
+## Key Accomplishments
+
+### 1. Database & Entities
+- Added new [Series](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/models/sessions/Series.java#15-114), [Session](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/models/sessions/Session.java#13-150), and [CalendarEvent](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/models/sessions/CalendarEvent.java#7-65) entities.
+- Mapped relationships such that a [Tenant](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/models/Tenant.java#10-281) acts as the scheduling Therapist providing services to a [Client](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/models/Client.java#14-309).
+- Configured PostgreSQL custom ENUMs via `@JdbcTypeCode(SqlTypes.NAMED_ENUM)` mapping to `SessionType`, `SessionStatus`, `SeriesStatus`, and [SyncStatus](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/models/sessions/CalendarEvent.java#56-57).
+
+### 2. Service Layer & Business Logic
+- **Conflict Detection:** Added a single-query overlap checking algorithm in [SessionRepository](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/models/sessions/SessionRepository.java#12-28) to securely reject overlapping sessions for a given therapist.
+- **Recurrent Scheduling:** Automatically handles recurrent series generation. Setting `frequencyDays` and `totalCount` correctly generates multiple interconnected [Session](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/models/sessions/Session.java#13-150) entities tied to a [Series](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/models/sessions/Series.java#15-114).
+- **Modifiable Series:** Added the ability to apply future patches and cancellations using the `scope=future_in_series` flag in updates.
+
+### 3. Google Calendar Synchronization
+- **Token Management:** Created [GoogleCredentialService](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/service/sessions/GoogleCredentialService.java#19-69) utilizing Google's `CredentialRefreshListener`. This automatically persists refreshed tokens (access token, refresh token, expiry) directly onto the PostgreSQL [Tenant](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/models/Tenant.java#10-281) entity.
+- **Asynchronous Syncing:** Built [CalendarSyncJob](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/service/sessions/CalendarSyncJob.java#28-191) which is scheduled automatically upon session creation/modification via [JobRunr](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/config/JobRunrConfig.java#11-21).
+- **Idempotency:** Utilized [CalendarEvent](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/models/sessions/CalendarEvent.java#7-65) records to track Google Event IDs and sync statuses (`SYNCED`, `PENDING`, `FAILED`) to ensure retries are safe. Adds automated Google Meet link generation for `GOOGLE_MEET` session types.
+
+### 4. Controller & Documentation
+- Completed [SessionController](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/api/tenant/sessions/SessionController.java#22-181) mapping perfectly to `/api/tenant/sessions/*`.
+- Handled tenant-specific JWT authentication logic mirroring the surrounding backend framework utilizing [TenantJwtUtil](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/util/security/TenantJwtUtil.java#22-114).
+- Added highly comprehensive and thoroughly documented **Swagger / OpenAPI** annotations natively into the controller. Developers can directly check the Swagger UI for payloads, response structures, and HTTP statuses (e.g., `409` CONFLICT vs `422` VALIDATION_ERROR).
+- Added deeply nested `@Schema` annotations to [CreateSessionRequest](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/api/tenant/sessions/CreateSessionRequest.java#9-60) and [UpdateSessionRequest](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/api/tenant/sessions/UpdateSessionRequest.java#8-41) dictating the exact JSON payloads that developers should submit. Includes examples for recurring configurations (like `frequencyDays=7`), enums (`GOOGLE_MEET`, `IN_PERSON`), and defaults.
+
+## Verification
+- Code successfully compiled with all required Spring Boot components and `jobrunr-spring-boot-3-starter`.
+- Storage provider correctly autowired to JobRunr using the application's native PostgreSQL DataSource via [JobRunrConfig](file:///home/aryan/Desktop/Projects/PersonalProjects/backend/src/main/java/com/aantriksanket/backend/config/JobRunrConfig.java#11-21).
+- Application tested via `bootRun` successfully launching with background task listeners active.
