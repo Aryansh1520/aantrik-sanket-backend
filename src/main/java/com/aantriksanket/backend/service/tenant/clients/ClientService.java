@@ -98,7 +98,12 @@ public class ClientService {
         try {
             client = clientRepository.save(client);
         } catch (DataIntegrityViolationException e) {
-            throw new RuntimeException("A client with email '" + email + "' already exists.");
+            // Gracefully handle duplicate email — return existing client ID if found, otherwise throw
+            return clientRepository.findByTenantIdOrderByCreatedAtDesc(tenant.getId()).stream()
+                    .filter(c -> c.getEmail().equalsIgnoreCase(email))
+                    .findFirst()
+                    .map(c -> c.getId().toString())
+                    .orElseThrow(() -> new RuntimeException("A client with email '" + email + "' already exists."));
         }
         return client.getId().toString();
     }
@@ -116,6 +121,35 @@ public class ClientService {
             }
         }
 
+        client.setEmergencyContactNumber(clientData.get("emergency_contact_number"));
+        
+        String genderStr = clientData.get("gender");
+        if (genderStr != null) {
+            try {
+                client.setGender(Gender.valueOf(genderStr));
+            } catch (Exception ignored) {}
+        }
+        
+        String maritalStr = clientData.get("marital_status");
+        if (maritalStr != null) {
+            try {
+                client.setMaritalStatus(MaritalStatus.valueOf(maritalStr));
+            } catch (Exception ignored) {}
+        }
+        
+        client.setOccupation(clientData.get("occupation"));
+        client.setEducationLevel(clientData.get("education_level"));
+        client.setNationality(clientData.get("nationality"));
+        client.setGeneralProblems(clientData.get("general_problems"));
+        client.setAddress(clientData.get("address"));
+        
+        String qaStr = clientData.get("questions_answers");
+        if (qaStr != null && !qaStr.trim().isEmpty() && !qaStr.equals("{}")) {
+            try {
+                client.setQuestionsAnswers(objectMapper.readValue(qaStr, new TypeReference<Map<String, Object>>() {}));
+            } catch (Exception ignored) {}
+        }
+
         clientRepository.save(client);
     }
 
@@ -130,21 +164,22 @@ public class ClientService {
     }
 
     private String normalizeGender(String input) {
-        if (input == null) return null;
+        if (input == null) return "PREFER_NOT_TO_SAY";
         String val = input.trim().toLowerCase();
-        if (val.equals("male") || val.equals("m")) return "MALE";
-        if (val.equals("female") || val.equals("f")) return "FEMALE";
+        if (val.equals("male") || val.equals("m") || val.startsWith("m")) return "MALE";
+        if (val.equals("female") || val.equals("f") || val.startsWith("f")) return "FEMALE";
         if (val.equals("other") || val.equals("o")) return "OTHER";
         return "PREFER_NOT_TO_SAY";
     }
 
     private String normalizeMaritalStatus(String input) {
-        if (input == null) return null;
+        if (input == null) return "OTHER";
         String val = input.trim().toLowerCase();
-        if (val.equals("single")) return "SINGLE";
-        if (val.equals("married")) return "MARRIED";
-        if (val.equals("divorced")) return "DIVORCED";
-        if (val.equals("widowed")) return "WIDOWED";
+        if (val.equals("single") || val.startsWith("sing")) return "SINGLE";
+        if (val.equals("married") || val.startsWith("mar")) return "MARRIED";
+        if (val.equals("divorced") || val.startsWith("div")) return "DIVORCED";
+        if (val.equals("widowed") || val.startsWith("wid")) return "WIDOWED";
+        if (val.equals("separated") || val.startsWith("sep")) return "SEPARATED";
         return "OTHER";
     }
 
@@ -155,7 +190,7 @@ public class ClientService {
         data.put("email", findField("Email", text));
         data.put("phone_number", findField("Mobile Number", text));
         data.put("emergency_contact_number", findField("Emergency Contact", text));
-        
+
         String dob = findField("Date of Birth", text);
         if (dob != null) {
             try {
