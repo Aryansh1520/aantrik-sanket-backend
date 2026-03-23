@@ -21,7 +21,7 @@ public class SubscriptionPlan {
     private String name;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "features", nullable = false, columnDefinition = "jsonb")
+    @Column(name = "permissions", nullable = false, columnDefinition = "jsonb")
     private Map<String, Boolean> features;
 
     // Fixed validity for special plans (Trial, Friends & Family) - if set, ignores tiered validity
