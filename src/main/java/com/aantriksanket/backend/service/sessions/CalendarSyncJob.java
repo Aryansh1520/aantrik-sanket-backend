@@ -17,6 +17,8 @@ import com.google.api.services.calendar.model.ConferenceSolutionKey;
 import com.google.api.services.calendar.model.CreateConferenceRequest;
 import com.google.api.services.calendar.model.Event;
 import com.google.api.services.calendar.model.EventDateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,8 @@ import java.util.UUID;
 
 @Service
 public class CalendarSyncJob {
+
+    private static final Logger log = LoggerFactory.getLogger(CalendarSyncJob.class);
 
     private final SessionRepository sessionRepository;
     private final CalendarEventRepository calendarEventRepository;
@@ -112,7 +116,9 @@ public class CalendarSyncJob {
             
             calendarEventRepository.save(ce);
             sessionRepository.save(session);
+            log.info("Successfully synced creating event for session ID: {}", sessionId);
         } catch (Exception e) {
+            log.error("Failed to sync creating event for session ID: {}. Reason: {}", sessionId, e.getMessage(), e);
             ce.setSyncStatus(SyncStatus.FAILED);
             ce.setErrorMessage(e.getMessage());
             calendarEventRepository.save(ce);
@@ -150,7 +156,9 @@ public class CalendarSyncJob {
             ce.setLastSyncedAt(OffsetDateTime.now());
             ce.setErrorMessage(null);
             calendarEventRepository.save(ce);
+            log.info("Successfully synced patching event for session ID: {}", sessionId);
         } catch (Exception e) {
+            log.error("Failed to sync patching event for session ID: {}. Reason: {}", sessionId, e.getMessage(), e);
             ce.setSyncStatus(SyncStatus.FAILED);
             ce.setErrorMessage(e.getMessage());
             calendarEventRepository.save(ce);
